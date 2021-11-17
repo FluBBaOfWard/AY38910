@@ -11,8 +11,9 @@
 	.global ay38910DataW
 	.global ay38910DataR
 
-.equ NSEED,	0x00001				;@ Noise Seed
+.equ NSEED,	0x10000				;@ Noise Seed
 .equ WFEED,	0x12000				;@ White Noise Feedback, according to MAME.
+.equ WFEED3, 0x14000			;@ White Noise Feedback, according to MAME.
 
 	.syntax unified
 	.arm
@@ -77,7 +78,7 @@ mixLoop:
 
 	orr r11,r8,r8,lsr#8				;@ Channels disable.
 	and r11,r11,r11,lsr#3			;@ Noise disable.
-	and r11,r11,#3
+	and r11,r11,#7
 	mov r11,r11,lsl#1
 	ldrh r11,[r10,r11]
 	add r11,r11,lr
