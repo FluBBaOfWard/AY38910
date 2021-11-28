@@ -124,23 +124,23 @@ rLoop:
 
 	bl updateAllRegisters
 
-	ldr r1,=attenuation0
-	str r1,[r0,#ayEnvVolumePtr]
-	adr r1,dummyOutFunc
-	str r1,[r0,#ayPortAOutFptr]
-	str r1,[r0,#ayPortBOutFptr]
-	ldr r1,=portAInDummy
-	str r1,[r0,#ayPortAInFptr]
-	ldr r1,=portBInDummy
-	str r1,[r0,#ayPortBInFptr]
-	mov r1,#0x8000
-	strh r1,[r0,#ayCalculatedVolumes]
+	ldr r0,=attenuation0
+	str r0,[r1,#ayEnvVolumePtr]
+	adr r0,dummyOutFunc
+	str r0,[r1,#ayPortAOutFptr]
+	str r0,[r1,#ayPortBOutFptr]
+	ldr r0,=portAInDummy
+	str r0,[r1,#ayPortAInFptr]
+	ldr r0,=portBInDummy
+	str r0,[r1,#ayPortBInFptr]
+	mov r0,#0x8000
+	strh r0,[r1,#ayCalculatedVolumes]
 
-	mov r1,#0xFF
-	strb r1,[r0,#ayPortAIn]
-	strb r1,[r0,#ayPortBIn]
-	mov r1,#NSEED
-	str r1,[r0,#ayRng]
+	mov r0,#0xFF
+	strb r0,[r1,#ayPortAIn]
+	strb r0,[r1,#ayPortBIn]
+	mov r0,#NSEED
+	str r0,[r1,#ayRng]
 
 	ldmfd sp!,{lr}
 dummyOutFunc:
