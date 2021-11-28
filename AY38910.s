@@ -29,65 +29,65 @@
 ;@----------------------------------------------------------------------------
 ;@ r0  = mix length.
 ;@ r1  = mixerbuffer.
-;@ r2 -> r5 = pos+freq.
-;@ r6  = noise generator.
-;@ r7 = envelope freq
-;@ r8 = envelope addr, ch disable, envelope type.
-;@ r9 = pointer to attenuation table.
-;@ r10= calculatedVolumes.
-;@ r11= mixer reg/scrap
-;@ r12= ayptr
-;@ lr = envelope volume
+;@ r2  = ayptr
+;@ r3 -> r6 = pos+freq.
+;@ r7  = noise generator.
+;@ r8  = envelope freq
+;@ r9  = envelope addr, ch disable, envelope type.
+;@ r10 = pointer to attenuation table.
+;@ r11 = calculatedVolumes.
+;@ r12 = mixer reg/scrap
+;@ lr  = envelope volume
 ;@----------------------------------------------------------------------------
-ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r12=pointer to struct
+ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r2=pointer to struct
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{r4-r11,lr}
-	ldmia ayptr,{r2-r10}			;@ Load freq,addr,rng
-	tst r10,#0xff
+	ldmia r2,{r3-r11}			;@ Load freq,addr,rng
+	tst r11,#0xff
 	blne calculateVolumes
-	add r10,ayptr,#ayCalculatedVolumes
+	add r11,r2,#ayCalculatedVolumes
 ;@----------------------------------------------------------------------------
 mixLoop:
-	adds r7,r7,#0x00010000
-	subcs r7,r7,r7,lsl#16
-	addcs r8,r8,#0x08000000
-	tst r8,r8,lsl#15				;@ Envelope Hold
-	bicmi r8,r8,#0x78000000
-	and lr,r8,#0x78000000
-	and r11,r8,r8,lsl#14			;@ Envelope Alternate (allready flipped from Hold)
-	eors r11,r11,r8,lsl#13			;@ Envelope Attack
+	adds r8,r8,#0x00010000
+	subcs r8,r8,r8,lsl#16
+	addcs r9,r9,#0x08000000
+	tst r9,r9,lsl#15				;@ Envelope Hold
+	bicmi r9,r9,#0x78000000
+	and lr,r9,#0x78000000
+	and r12,r9,r9,lsl#14			;@ Envelope Alternate (allready flipped from Hold)
+	eors r12,r12,r9,lsl#13			;@ Envelope Attack
 	eorpl lr,lr,#0x78000000
 
-	ldr lr,[r9,lr,lsr#25]
+	ldr lr,[r10,lr,lsr#25]
 
-	adds r2,r2,#0x00100000
-	subcs r2,r2,r2,lsl#20
-	eorcs r8,r8,#0x01				;@ Channel A
 	adds r3,r3,#0x00100000
 	subcs r3,r3,r3,lsl#20
-	eorcs r8,r8,#0x02				;@ Channel B
+	eorcs r9,r9,#0x01				;@ Channel A
 	adds r4,r4,#0x00100000
 	subcs r4,r4,r4,lsl#20
-	eorcs r8,r8,#0x04				;@ Channel C
+	eorcs r9,r9,#0x02				;@ Channel B
 	adds r5,r5,#0x00100000
-	subcs r5,r5,r5,lsl#21
-	orrcs r8,r8,#0x00000038			;@ Clear noise channel.
-	movscs r6,r6,lsr#1
-	eorcs r6,r6,#WFEED
-	eorcs r8,r8,#0x00000038			;@ Noise channel.
+	subcs r5,r5,r5,lsl#20
+	eorcs r9,r9,#0x04				;@ Channel C
+	adds r6,r6,#0x00800000
+	subcs r6,r6,r6,lsl#27
+	orrcs r9,r9,#0x00000038			;@ Clear noise channel.
+	movscs r7,r7,lsr#1
+	eorcs r7,r7,#WFEED
+	eorcs r9,r9,#0x00000038			;@ Noise channel.
 
-	orr r11,r8,r8,lsr#8				;@ Channels disable.
-	and r11,r11,r11,lsr#3			;@ Noise disable.
-	and r11,r11,#7
-	mov r11,r11,lsl#1
-	ldrh r11,[r10,r11]
-	add r11,r11,lr
+	orr r12,r9,r9,lsr#8				;@ Channels disable.
+	and r12,r12,r12,lsr#3			;@ Noise disable.
+	and r12,r12,#7
+	mov r12,r12,lsl#1
+	ldrh r12,[r11,r12]
+	add r12,r12,lr
 
 	subs r0,r0,#1
-	strhpl r11,[r1],#2
+	strhpl r12,[r1],#2
 	bhi mixLoop
 
-	stmia ayptr,{r2-r8}				;@ Write back freq,addr,rng
+	stmia r2,{r3-r9}				;@ Write back freq,addr,rng
 	ldmfd sp!,{r4-r11,lr}
 	bx lr
 
@@ -109,47 +109,52 @@ attenuation3:
 	.section .text
 	.align 2
 ;@----------------------------------------------------------------------------
-ay38910Reset:				;@ ayptr=r12=pointer to struct
+ay38910Reset:				;@ ayptr=r0=pointer to struct
+	.type   ay38910Reset STT_FUNC
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{lr}
 
-	mov r0,ayptr
-	ldr r1,=aySize/4
-	bl memclr_					;@ Clear AY38910 state
+	mov r1,r0
+	mov r0,#0
+	mov r2,#aySize/4			;@ Clear AY38910 state
+rLoop:
+	subs r2,r2,#1
+	strpl r0,[r1,r2,lsl#2]
+	bhi rLoop
 
 	bl updateAllRegisters
 
-	ldr r0,=attenuation0
-	str r0,[ayptr,#ayEnvVolumePtr]
-	adr r0,dummyOutFunc
-	str r0,[ayptr,#ayPortAOutFptr]
-	str r0,[ayptr,#ayPortBOutFptr]
-	ldr r0,=portAInDummy
-	str r0,[ayptr,#ayPortAInFptr]
-	ldr r0,=portBInDummy
-	str r0,[ayptr,#ayPortBInFptr]
-	mov r0,#0x8000
-	strh r0,[ayptr,#ayCalculatedVolumes]
+	ldr r1,=attenuation0
+	str r1,[r0,#ayEnvVolumePtr]
+	adr r1,dummyOutFunc
+	str r1,[r0,#ayPortAOutFptr]
+	str r1,[r0,#ayPortBOutFptr]
+	ldr r1,=portAInDummy
+	str r1,[r0,#ayPortAInFptr]
+	ldr r1,=portBInDummy
+	str r1,[r0,#ayPortBInFptr]
+	mov r1,#0x8000
+	strh r1,[r0,#ayCalculatedVolumes]
 
-	mov r0,#0xFF
-	strb r0,[ayptr,#ayPortAIn]
-	strb r0,[ayptr,#ayPortBIn]
-	mov r0,#NSEED
-	str r0,[ayptr,#ayRng]
+	mov r1,#0xFF
+	strb r1,[r0,#ayPortAIn]
+	strb r1,[r0,#ayPortBIn]
+	mov r1,#NSEED
+	str r1,[r0,#ayRng]
 
 	ldmfd sp!,{lr}
 dummyOutFunc:
 	bx lr
 ;@----------------------------------------------------------------------------
-updateAllRegisters:
+updateAllRegisters:			;@ In r1=ayptr
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{lr}
 	mov r3,#0
 regLoop:
 	mov r0,r3
 	bl ay38910IndexW
-	add r1,ayptr,#ayRegs
-	ldrb r0,[r1,r3]
+	add r2,r1,#ayRegs
+	ldrb r0,[r2,r3]
 	bl ay38910DataW
 	add r3,r3,#1
 	cmp r3,#0x10
@@ -174,7 +179,7 @@ ay38910LoadState:			;@ In r0=ayptr, r1=source. Out r0=state size.
 	add r0,r0,#ayRegs
 	mov r2,#0x10
 	bl memcpy
-	mov ayptr,r4
+	mov r1,r4
 	bl updateAllRegisters
 	ldmfd sp!,{r4,lr}
 ;@----------------------------------------------------------------------------
@@ -189,19 +194,23 @@ ay38910GetStateSize:		;@ Out r0=state size.
 	.align 2
 #endif
 ;@----------------------------------------------------------------------------
-ay38910IndexW:
+ay38910IndexW:			;@ In r0=value, r1=ayptr
+	.type   ay38910IndexW STT_FUNC
+;@----------------------------------------------------------------------------
 	tst r0,#0xF0
-	strbeq r0,[ayptr,#ayRegIndex]
+	strbeq r0,[r1,#ayRegIndex]
 	bx lr
 ;@----------------------------------------------------------------------------
-ay38910DataW:
-	ldrb r1,[ayptr,#ayRegIndex]
-	adr r2,regMask
-	ldrb r2,[r2,r1]
-	and r0,r0,r2
-	add r2,ayptr,#ayRegs
-	strb r0,[r2,r1]
-	ldr pc,[pc,r1,lsl#2]
+ay38910DataW:			;@ In r0=value, r1=ayptr
+	.type   ay38910DataW STT_FUNC
+;@----------------------------------------------------------------------------
+	ldrb r2,[r1,#ayRegIndex]
+	adr r12,regMask
+	ldrb r12,[r12,r2]
+	and r0,r0,r12
+	add r12,r1,#ayRegs
+	strb r0,[r12,r2]
+	ldr pc,[pc,r2,lsl#2]
 	.long 0
 ayTable:
 	.long ay38910Reg0W
@@ -221,12 +230,14 @@ ayTable:
 	.long ay38910RegEW
 	.long ay38910RegFW
 ;@----------------------------------------------------------------------------
-ay38910DataR:
-	ldrb r1,[ayptr,#ayRegIndex]
+ay38910DataR:			;@ In r0=ayptr
+	.type   ay38910DataR STT_FUNC
+;@----------------------------------------------------------------------------
+	ldrb r1,[r0,#ayRegIndex]
 	cmp r1,#0xE
 	beq ay38910RegER
 	bhi ay38910RegFR
-	add r0,ayptr,#ayRegs
+	add r1,r1,#ayRegs
 	ldrb r0,[r0,r1]
 	bx lr
 ;@----------------------------------------------------------------------------
@@ -236,45 +247,45 @@ regMask:
 ay38910Reg1W:
 ay38910Reg3W:
 ay38910Reg5W:
-	bic r1,r1,#1
+	bic r2,r2,#1
 ;@----------------------------------------------------------------------------
 ay38910Reg0W:
 ay38910Reg2W:
 ay38910Reg4W:
-	ldrh r0,[r2,r1]
+	ldrh r0,[r12,r2]
 	cmp r0,#0
 	moveq r0,#1
-	add r2,ayptr,r1,lsl#1
-	strh r0,[r2,#ayCh0Freq]
+	add r12,r1,r2,lsl#1
+	strh r0,[r12,#ayCh0Freq]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910Reg6W:
 	cmp r0,#0
 	moveq r0,#1
-	strh r0,[ayptr,#ayCh3Freq]
+	strh r0,[r1,#ayCh3Freq]
 //	mov r0,#NSEED
-//	str r0,[ayptr,#ayRng]
+//	str r0,[r1,#ayRng]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910Reg7W:
-	strb r0,[ayptr,#ayChDisable]
+	strb r0,[r1,#ayChDisable]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910Reg8W:
 ay38910Reg9W:
 ay38910RegAW:
-	strb r1,[ayptr,#ayAttChg]
+	strb r2,[r1,#ayAttChg]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegBW:
 ay38910RegCW:
-	ldrb r0,[ayptr,#ayRegs+0xB]
-	ldrb r1,[ayptr,#ayRegs+0xC]
-	orrs r0,r0,r1,lsl#8
+	ldrb r0,[r1,#ayRegs+0xB]
+	ldrb r2,[r1,#ayRegs+0xC]
+	orrs r0,r0,r2,lsl#8
 	moveq r0,#1
-	strh r0,[ayptr,#ayEnvFreq]
+	strh r0,[r1,#ayEnvFreq]
 //	mov r0,#0
-//	strb r0,[ayptr,#ayEnvAddr]
+//	strb r0,[r1,#ayEnvAddr]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegDW:
@@ -284,86 +295,86 @@ ay38910RegDW:
 	movmi r0,#0xF
 	tst r0,#1					;@ ALT ^= Hold
 	eorne r0,r0,#2
-	strh r0,[ayptr,#ayEnvType]	;@ Also clear Envelope addr
+	strh r0,[r1,#ayEnvType]		;@ Also clear Envelope addr
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegEW:
-	strb r0,[ayptr,#ayPortAOut]
-	ldrb r1,[ayptr,#ayChDisable]
-	tst r1,#0x40
-	ldrne pc,[ayptr,#ayPortAOutFptr]
+	strb r0,[r1,#ayPortAOut]
+	ldrb r2,[r1,#ayChDisable]
+	tst r2,#0x40
+	ldrne pc,[r1,#ayPortAOutFptr]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegFW:
-	strb r0,[ayptr,#ayPortBOut]
-	ldrb r1,[ayptr,#ayChDisable]
-	tst r1,#0x80
-	ldrne pc,[ayptr,#ayPortBOutFptr]
+	strb r0,[r1,#ayPortBOut]
+	ldrb r2,[r1,#ayChDisable]
+	tst r2,#0x80
+	ldrne pc,[r1,#ayPortBOutFptr]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegER:
-	ldrb r1,[ayptr,#ayChDisable]
+	ldrb r1,[r0,#ayChDisable]
 	tst r1,#0x40
-	ldrbne r0,[ayptr,#ayPortAOut]
+	ldrbne r0,[r0,#ayPortAOut]
 	bxne lr
-	ldr pc,[ayptr,#ayPortAInFptr]
+	ldr pc,[r0,#ayPortAInFptr]
 ;@-------------------------------
 portAInDummy:
-	ldrb r0,[ayptr,#ayPortAIn]
+	ldrb r0,[r0,#ayPortAIn]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegFR:
-	ldrb r1,[ayptr,#ayChDisable]
+	ldrb r1,[r0,#ayChDisable]
 	tst r1,#0x80
-	ldrbne r0,[ayptr,#ayPortBOut]
+	ldrbne r0,[r0,#ayPortBOut]
 	bxne lr
-	ldr pc,[ayptr,#ayPortBInFptr]
+	ldr pc,[r0,#ayPortBInFptr]
 ;@-------------------------------
 portBInDummy:
-	ldrb r0,[ayptr,#ayPortBIn]
+	ldrb r0,[r0,#ayPortBIn]
 	bx lr
 ;@----------------------------------------------------------------------------
-calculateVolumes:
+calculateVolumes:			;@ ayptr=r2
 ;@----------------------------------------------------------------------------
-	stmfd sp!,{r0-r5,lr}
+	stmfd sp!,{r0-r6,lr}
 
-	mov r2,#0					;@ Used to calculate how many channels use the envelope.
-	ldrb r0,[ayptr,#ayRegs+0x8]
-	ands r3,r0,#0x10
-	andeq r3,r0,#0xF
-	addne r2,r2,#1
-	ldrb r0,[ayptr,#ayRegs+0x9]
+	mov r3,#0					;@ Used to calculate how many channels use the envelope.
+	ldrb r0,[r2,#ayRegs+0x8]
 	ands r4,r0,#0x10
 	andeq r4,r0,#0xF
-	addne r2,r2,#1
-	ldrb r0,[ayptr,#ayRegs+0xA]
+	addne r3,r3,#1
+	ldrb r0,[r2,#ayRegs+0x9]
 	ands r5,r0,#0x10
 	andeq r5,r0,#0xF
-	addne r2,r2,#1
+	addne r3,r3,#1
+	ldrb r0,[r2,#ayRegs+0xA]
+	ands r6,r0,#0x10
+	andeq r6,r0,#0xF
+	addne r3,r3,#1
 
 	ldr r1,=attenuation
-	sub r9,r1,#0x40				;@ Point to attenutation0
-	add r9,r9,r2,lsl#6
-	str r9,[ayptr,#ayEnvVolumePtr]
-	ldr r3,[r1,r3,lsl#2]
+	sub r10,r1,#0x40			;@ Point to attenuation0
+	add r10,r10,r3,lsl#6
+	str r10,[r2,#ayEnvVolumePtr]
 	ldr r4,[r1,r4,lsl#2]
 	ldr r5,[r1,r5,lsl#2]
+	ldr r6,[r1,r6,lsl#2]
 
-	add r2,ayptr,#ayCalculatedVolumes
+	add r3,r2,#ayCalculatedVolumes
 	mov r1,#0x0E
 volLoop:
 	ands r0,r1,#0x02
-	movne r0,r3
+	movne r0,r4
 	tst r1,#0x04
-	addne r0,r0,r4
-	tst r1,#0x08
 	addne r0,r0,r5
+	tst r1,#0x08
+	addne r0,r0,r6
 	eor r0,r0,#0x8000
-	strh r0,[r2,r1]
+	strh r0,[r3,r1]
 	subs r1,r1,#2
 	bne volLoop
-	strb r1,[ayptr,#ayAttChg]
-	ldmfd sp!,{r0-r5,pc}
+	strb r1,[r2,#ayAttChg]
+	ldmfd sp!,{r0-r6,pc}
 
 ;@----------------------------------------------------------------------------
 	.end
