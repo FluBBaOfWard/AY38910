@@ -1,5 +1,12 @@
-;@ AY-3-8910 / YM2149 sound chip emulator (for MSX).
+;@
+;@  AY38910.s
+;@  AY-3-8910 / YM2149 sound chip emulator for arm32.
+;@
+;@  Created by Fredrik Ahlström on 2006-03-07.
+;@  Copyright © 2006-2021 Fredrik Ahlström. All rights reserved.
+;@
 #ifdef __arm__
+
 #include "AY38910.i"
 
 	.global ay38910Reset
@@ -13,7 +20,7 @@
 
 .equ NSEED,	0x10000				;@ Noise Seed
 .equ WFEED,	0x12000				;@ White Noise Feedback, according to MAME.
-.equ WFEED3, 0x14000			;@ White Noise Feedback, according to MAME.
+.equ WFEED3, 0x14000			;@ White Noise Feedback for AY-3-8930, according to MAME.
 
 	.syntax unified
 	.arm
@@ -45,7 +52,7 @@ ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r2=pointer to struct
 	ldmia r2,{r3-r11}			;@ Load freq,addr,rng
 	tst r11,#0xff
 	blne calculateVolumes
-	add r11,r2,#ayCalculatedVolumes
+	add r2,r2,#ayCalculatedVolumes	;@ Change r2 to ayCalculatedVolumes ptr
 ;@----------------------------------------------------------------------------
 mixLoop:
 	adds r8,r8,#0x00010000
@@ -58,35 +65,41 @@ mixLoop:
 	eors r12,r12,r9,lsl#13			;@ Envelope Attack
 	eorpl lr,lr,#0x78000000
 
-	ldr lr,[r10,lr,lsr#25]
-
 	adds r3,r3,#0x00100000
 	subcs r3,r3,r3,lsl#20
-	eorcs r9,r9,#0x01				;@ Channel A
+	eorcs r9,r9,#0x02				;@ Channel A
 	adds r4,r4,#0x00100000
 	subcs r4,r4,r4,lsl#20
-	eorcs r9,r9,#0x02				;@ Channel B
+	eorcs r9,r9,#0x04				;@ Channel B
 	adds r5,r5,#0x00100000
 	subcs r5,r5,r5,lsl#20
-	eorcs r9,r9,#0x04				;@ Channel C
+	eorcs r9,r9,#0x08				;@ Channel C
 	adds r6,r6,#0x00800000
 	subcs r6,r6,r6,lsl#27
-	orrcs r9,r9,#0x00000038			;@ Clear noise channel.
+	orrcs r9,r9,#0x00000070			;@ Clear noise channel.
 	movscs r7,r7,lsr#1
 	eorcs r7,r7,#WFEED
-	eorcs r9,r9,#0x00000038			;@ Noise channel.
+	eorcs r9,r9,#0x00000070			;@ Noise channel.
 
-	orr r12,r9,r9,lsr#8				;@ Channels disable.
+	orr r12,r9,r9,lsr#9				;@ Channels disable.
 	and r12,r12,r12,lsr#3			;@ Noise disable.
-	and r12,r12,#7
-	mov r12,r12,lsl#1
-	ldrh r12,[r11,r12]
-	add r12,r12,lr
+	and r12,r12,#0xE
+	ldrh r11,[r2,r12]
+
+	ands r12,r12,r9,lsr#6			;@ Check if any channels use envelope
+	ldrne lr,[r10,lr,lsr#25]
+	tst r12,#8
+	addne r11,r11,lr
+	tst r12,#4
+	addne r11,r11,lr
+	tst r12,#2
+	addne r11,r11,lr
 
 	subs r0,r0,#1
-	strhpl r12,[r1],#2
+	strhpl r11,[r1],#2
 	bhi mixLoop
 
+	sub r2,r2,#ayCalculatedVolumes	;@ Restore r2/ayptr
 	stmia r2,{r3-r9}				;@ Write back freq,addr,rng
 	ldmfd sp!,{r4-r11,lr}
 	bx lr
@@ -96,14 +109,9 @@ mixLoop:
 	.align 2
 #endif
 ;@----------------------------------------------------------------------------
-attenuation0:
-	.long 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 attenuation:						;@ each step * 0.70710678 (-3dB?)
 	.long 0x0000, 0x00AB, 0x00F1, 0x0155, 0x01E3, 0x02AB, 0x03C5, 0x0555, 0x078B, 0x0AAB, 0x0F16, 0x1555, 0x1E2B, 0x2AAB, 0x3C57, 0x5555
-attenuation2:
-	.long 0x0000, 0x0155, 0x01E3, 0x02AB, 0x03C5, 0x0555, 0x078B, 0x0AAB, 0x0F16, 0x1555, 0x1E2B, 0x2AAB, 0x3C57, 0x5555, 0x78AE, 0xAAAA
-attenuation3:
-	.long 0x0000, 0x0200, 0x02D4, 0x0400, 0x05A8, 0x0800, 0x0B50, 0x1000, 0x16A1, 0x2000, 0x2D41, 0x4000, 0x5A82, 0x8000, 0xB505, 0xFFFF
+	.long 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 ;@----------------------------------------------------------------------------
 
 	.section .text
@@ -124,7 +132,7 @@ rLoop:
 
 	bl updateAllRegisters
 
-	ldr r0,=attenuation0
+	ldr r0,=attenuation
 	str r0,[r1,#ayEnvVolumePtr]
 	adr r0,dummyOutFunc
 	str r0,[r1,#ayPortAOutFptr]
@@ -244,12 +252,12 @@ ay38910DataR:			;@ In r0=ayptr
 regMask:
 	.byte 0xFF,0x0F,0xFF,0x0F,0xFF,0x0F,0x1F,0xFF, 0x1F,0x1F,0x1F,0xFF,0xFF,0x0F,0xFF,0xFF
 ;@----------------------------------------------------------------------------
-ay38910Reg1W:
+ay38910Reg1W:			;@ Frequency coarse
 ay38910Reg3W:
 ay38910Reg5W:
 	bic r2,r2,#1
 ;@----------------------------------------------------------------------------
-ay38910Reg0W:
+ay38910Reg0W:			;@ Frequency fine
 ay38910Reg2W:
 ay38910Reg4W:
 	ldrh r0,[r12,r2]
@@ -259,36 +267,35 @@ ay38910Reg4W:
 	strh r0,[r12,#ayCh0Freq]
 	bx lr
 ;@----------------------------------------------------------------------------
-ay38910Reg6W:
+ay38910Reg6W:			;@ Frequency coarse noise
 	cmp r0,#0
 	moveq r0,#1
 	strh r0,[r1,#ayCh3Freq]
-//	mov r0,#NSEED
-//	str r0,[r1,#ayRng]
 	bx lr
 ;@----------------------------------------------------------------------------
-ay38910Reg7W:
+ay38910Reg7W:			;@ Channel disable
+	ldrb r2,[r1,#ayChDisable]
+	and r2,r2,#3
+	orr r0,r2,r0,lsl#2
 	strb r0,[r1,#ayChDisable]
 	bx lr
 ;@----------------------------------------------------------------------------
-ay38910Reg8W:
+ay38910Reg8W:			;@ Attenuation
 ay38910Reg9W:
 ay38910RegAW:
 	strb r2,[r1,#ayAttChg]
 	bx lr
 ;@----------------------------------------------------------------------------
-ay38910RegBW:
-ay38910RegCW:
+ay38910RegCW:			;@ Envelope frequency
 	ldrb r0,[r1,#ayRegs+0xB]
+ay38910RegBW:
 	ldrb r2,[r1,#ayRegs+0xC]
 	orrs r0,r0,r2,lsl#8
 	moveq r0,#1
 	strh r0,[r1,#ayEnvFreq]
-//	mov r0,#0
-//	strb r0,[r1,#ayEnvAddr]
 	bx lr
 ;@----------------------------------------------------------------------------
-ay38910RegDW:
+ay38910RegDW:			;@ Envelope type
 	cmp r0,#4
 	movmi r0,#9
 	cmp r0,#8
@@ -300,20 +307,20 @@ ay38910RegDW:
 ;@----------------------------------------------------------------------------
 ay38910RegEW:
 	strb r0,[r1,#ayPortAOut]
-	ldrb r2,[r1,#ayChDisable]
+	ldrb r2,[r1,#ayRegs+7]		;@ ayChDisable
 	tst r2,#0x40
 	ldrne pc,[r1,#ayPortAOutFptr]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegFW:
 	strb r0,[r1,#ayPortBOut]
-	ldrb r2,[r1,#ayChDisable]
+	ldrb r2,[r1,#ayRegs+7]		;@ ayChDisable
 	tst r2,#0x80
 	ldrne pc,[r1,#ayPortBOutFptr]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegER:
-	ldrb r1,[r0,#ayChDisable]
+	ldrb r1,[r0,#ayRegs+7]		;@ ayChDisable
 	tst r1,#0x40
 	ldrbne r0,[r0,#ayPortAOut]
 	bxne lr
@@ -324,7 +331,7 @@ portAInDummy:
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910RegFR:
-	ldrb r1,[r0,#ayChDisable]
+	ldrb r1,[r0,#ayRegs+7]		;@ ayChDisable
 	tst r1,#0x80
 	ldrbne r0,[r0,#ayPortBOut]
 	bxne lr
@@ -334,47 +341,39 @@ portBInDummy:
 	ldrb r0,[r0,#ayPortBIn]
 	bx lr
 ;@----------------------------------------------------------------------------
-calculateVolumes:			;@ ayptr=r2
+calculateVolumes:			;@ r2 = ayptr, r10 = attenuation
 ;@----------------------------------------------------------------------------
-	stmfd sp!,{r0-r6,lr}
+	stmfd sp!,{r0,r1,r3-r6,lr}
 
-	mov r3,#0					;@ Used to calculate how many channels use the envelope.
+	bic r9,r9,#0x0380			;@ Bits used to show which channels use the envelope.
 	ldrb r0,[r2,#ayRegs+0x8]
-	ands r4,r0,#0x10
-	andeq r4,r0,#0xF
-	addne r3,r3,#1
+	movs r3,r0,lsl#27
+	ldrne r3,[r10,r3,lsr#25]
+	orrmi r9,r9,#0x0080
 	ldrb r0,[r2,#ayRegs+0x9]
-	ands r5,r0,#0x10
-	andeq r5,r0,#0xF
-	addne r3,r3,#1
+	movs r4,r0,lsl#27
+	ldrne r4,[r10,r4,lsr#25]
+	orrmi r9,r9,#0x0100
 	ldrb r0,[r2,#ayRegs+0xA]
-	ands r6,r0,#0x10
-	andeq r6,r0,#0xF
-	addne r3,r3,#1
+	movs r5,r0,lsl#27
+	ldrne r5,[r10,r5,lsr#25]
+	orrmi r9,r9,#0x0200
 
-	ldr r1,=attenuation
-	sub r10,r1,#0x40			;@ Point to attenuation0
-	add r10,r10,r3,lsl#6
-	str r10,[r2,#ayEnvVolumePtr]
-	ldr r4,[r1,r4,lsl#2]
-	ldr r5,[r1,r5,lsl#2]
-	ldr r6,[r1,r6,lsl#2]
-
-	add r3,r2,#ayCalculatedVolumes
+	add r6,r2,#ayCalculatedVolumes
 	mov r1,#0x0E
 volLoop:
 	ands r0,r1,#0x02
-	movne r0,r4
+	movne r0,r3
 	tst r1,#0x04
-	addne r0,r0,r5
+	addne r0,r0,r4
 	tst r1,#0x08
-	addne r0,r0,r6
+	addne r0,r0,r5
 	eor r0,r0,#0x8000
-	strh r0,[r3,r1]
+	strh r0,[r6,r1]
 	subs r1,r1,#2
 	bne volLoop
 	strb r1,[r2,#ayAttChg]
-	ldmfd sp!,{r0-r6,pc}
+	ldmfd sp!,{r0,r1,r3-r6,pc}
 
 ;@----------------------------------------------------------------------------
 	.end

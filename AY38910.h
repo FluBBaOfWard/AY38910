@@ -1,6 +1,10 @@
-/* AY38910 sound chip emulator
- * Copyright 2021 Fredrik Ahlström
- */
+//
+//  AY38910.h
+//  AY-3-8910 / YM2149 sound chip emulator for arm32.
+//
+//  Created by Fredrik Ahlström on 2006-03-07.
+//  Copyright © 2006-2021 Fredrik Ahlström. All rights reserved.
+//
 
 #ifndef AY38910_HEADER
 #define AY38910_HEADER
@@ -25,7 +29,7 @@ typedef struct {
 	u8 ayChDisable;
 	u8 ayEnvType;
 	u8 ayEnvAddr;
-	s16 *ayEnvVolumePtr;
+	u16 *ayEnvVolumePtr;
 
 	u8 ayAttChg;
 	u8 ayRegIndex;
@@ -80,18 +84,18 @@ int ay38910GetStateSize(void);
 void ay38910Mixer(int len, s16 *dest, AY38910 *chip);
 
 /**
- * Write data value to the selected index/register or IO-port in the AY38910 chip
- * @param  value: value to write.
- * @param  *chip: The AY38910 chip.
- */
-void ay38910DataW(u8 value, AY38910 *chip);
-
-/**
  * Write index/register value to the AY38910 chip
  * @param  index: index to write.
  * @param  *chip: The AY38910 chip.
  */
 void ay38910IndexW(u8 index, AY38910 *chip);
+
+/**
+ * Write data value to the selected index/register or IO-port in the AY38910 chip
+ * @param  value: value to write.
+ * @param  *chip: The AY38910 chip.
+ */
+void ay38910DataW(u8 value, AY38910 *chip);
 
 /**
  * Read data from the selected index/register in the AY38910 chip
