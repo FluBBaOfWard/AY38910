@@ -10,6 +10,8 @@ Produces signed 16bit mono.
 
 ## Projects that use this code
 
+* https://github.com/FluBBaOfWard/BlackTigerDS (YM2203)
+* https://github.com/FluBBaOfWard/DoubleDribbleDS (YM2203)
 * https://github.com/FluBBaOfWard/GhostsNGoblinsDS (YM2203)
 * https://github.com/FluBBaOfWard/IronHorseDS (YM2203)
 * https://github.com/FluBBaOfWard/S8DS
