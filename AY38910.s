@@ -22,6 +22,11 @@
 .equ WFEED,	0x12000				;@ White Noise Feedback, according to MAME.
 .equ WFEED3, 0x14000			;@ White Noise Feedback for AY-3-8930, according to MAME.
 
+#define AYDIVIDE 1
+#define AYNOISEADD 0x08000000*AYDIVIDE
+#define AYTONEADD  0x00100000*AYDIVIDE
+#define AYENVADD   0x00010000*AYDIVIDE
+
 	.syntax unified
 	.arm
 
@@ -53,10 +58,9 @@ ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r2=pointer to struct
 	ldmia r2,{r3-r11}			;@ Load freq,addr,rng
 	tst r11,#0xff
 	blne calculateVolumes
-	add r2,r2,#ayCalculatedVolumes	;@ Change r2 to ayCalculatedVolumes ptr
 ;@----------------------------------------------------------------------------
 mixLoop:
-	adds r8,r8,#0x00010000
+	adds r8,r8,#AYENVADD
 	subcs r8,r8,r8,lsl#16
 	addcs r9,r9,#0x08000000
 	tst r9,r9,lsl#15				;@ Envelope Hold
@@ -66,16 +70,16 @@ mixLoop:
 	eors r12,r12,r9,lsl#13			;@ Envelope Attack
 	eorpl lr,lr,#0x78000000
 
-	adds r3,r3,#0x00100000
+	adds r3,r3,#AYTONEADD
 	subcs r3,r3,r3,lsl#20
 	eorcs r9,r9,#0x0000002			;@ Channel A
-	adds r4,r4,#0x00100000
+	adds r4,r4,#AYTONEADD
 	subcs r4,r4,r4,lsl#20
 	eorcs r9,r9,#0x00000004			;@ Channel B
-	adds r5,r5,#0x00100000
+	adds r5,r5,#AYTONEADD
 	subcs r5,r5,r5,lsl#20
 	eorcs r9,r9,#0x00000008			;@ Channel C
-	adds r6,r6,#0x00800000
+	adds r6,r6,#AYNOISEADD
 	subcs r6,r6,r6,lsl#27
 	orrcs r9,r9,#0x00000070			;@ Clear noise channel.
 	movscs r7,r7,lsr#1
@@ -84,22 +88,21 @@ mixLoop:
 
 	orr r12,r9,r9,lsr#9				;@ Channels disable.
 	and r12,r12,r12,lsr#3			;@ Noise disable.
-	and r12,r12,#0xE
-	ldrh r11,[r2,r12]
+	mov r12,r12,lsl#28
+	add r11,r2,r12,lsr#28
+	ldrh r11,[r11,#ayCalculatedVolumes]
 
-	ands r12,r12,r9,lsr#6			;@ Check if any channels use envelope
+	ands r12,r12,r9,lsl#22			;@ Check if any channels use envelope
 	ldrne lr,[r10,lr,lsr#25]
-	teq r12,r12,lsl#29
+	addmi r11,r11,lr
+	movs r12,r12,lsl#2
 	addcs r11,r11,lr
 	addmi r11,r11,lr
-	tst r12,#2
-	addne r11,r11,lr
 
 	subs r0,r0,#1
 	strhpl r11,[r1],#2
 	bhi mixLoop
 
-	sub r2,r2,#ayCalculatedVolumes	;@ Restore r2/ayptr
 	stmia r2,{r3-r9}				;@ Write back freq,addr,rng
 	ldmfd sp!,{r4-r11,lr}
 	bx lr
