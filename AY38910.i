@@ -3,7 +3,7 @@
 ;@  ASM header for the AY-3-8910 / YM2149 sound chip emulator for arm32.
 ;@
 ;@  Created by Fredrik Ahlström on 2006-03-07.
-;@  Copyright © 2006-2021 Fredrik Ahlström. All rights reserved.
+;@  Copyright © 2006-2024 Fredrik Ahlström. All rights reserved.
 ;@
 
 							;@ AY38910.s
@@ -19,7 +19,7 @@
 
 	ayRng:			.long 0
 	ayEnvFreq:		.long 0
-	ayChState:		.byte 0
+	ayChState:		.byte 0		;@ Which channels are high/low
 	ayChDisable:	.byte 0
 	ayEnvType:		.byte 0
 	ayEnvAddr:		.byte 0

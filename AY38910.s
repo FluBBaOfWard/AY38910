@@ -3,7 +3,7 @@
 ;@  AY-3-8910 / YM2149 sound chip emulator for arm32.
 ;@
 ;@  Created by Fredrik Ahlström on 2006-03-07.
-;@  Copyright © 2006-2021 Fredrik Ahlström. All rights reserved.
+;@  Copyright © 2006-2024 Fredrik Ahlström. All rights reserved.
 ;@
 #ifdef __arm__
 
@@ -40,13 +40,14 @@
 ;@ r3 -> r6 = pos+freq.
 ;@ r7  = noise generator.
 ;@ r8  = envelope freq
-;@ r9  = envelope addr, ch disable, envelope type.
+;@ r9  = envelope addr, envelope type, ch disable, ch state.
 ;@ r10 = pointer to attenuation table.
-;@ r11 = calculatedVolumes.
-;@ r12 = mixer reg/scrap
+;@ r11 = mixer reg.
+;@ r12 = ch state/scrap
 ;@ lr  = envelope volume
 ;@----------------------------------------------------------------------------
 ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r2=pointer to struct
+	.type   ay38910Mixer STT_FUNC
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{r4-r11,lr}
 	ldmia r2,{r3-r11}			;@ Load freq,addr,rng
@@ -67,13 +68,13 @@ mixLoop:
 
 	adds r3,r3,#0x00100000
 	subcs r3,r3,r3,lsl#20
-	eorcs r9,r9,#0x02				;@ Channel A
+	eorcs r9,r9,#0x0000002			;@ Channel A
 	adds r4,r4,#0x00100000
 	subcs r4,r4,r4,lsl#20
-	eorcs r9,r9,#0x04				;@ Channel B
+	eorcs r9,r9,#0x00000004			;@ Channel B
 	adds r5,r5,#0x00100000
 	subcs r5,r5,r5,lsl#20
-	eorcs r9,r9,#0x08				;@ Channel C
+	eorcs r9,r9,#0x00000008			;@ Channel C
 	adds r6,r6,#0x00800000
 	subcs r6,r6,r6,lsl#27
 	orrcs r9,r9,#0x00000070			;@ Clear noise channel.
@@ -88,10 +89,9 @@ mixLoop:
 
 	ands r12,r12,r9,lsr#6			;@ Check if any channels use envelope
 	ldrne lr,[r10,lr,lsr#25]
-	tst r12,#8
-	addne r11,r11,lr
-	tst r12,#4
-	addne r11,r11,lr
+	teq r12,r12,lsl#29
+	addcs r11,r11,lr
+	addmi r11,r11,lr
 	tst r12,#2
 	addne r11,r11,lr
 
@@ -275,7 +275,7 @@ ay38910Reg6W:			;@ Frequency coarse noise
 ;@----------------------------------------------------------------------------
 ay38910Reg7W:			;@ Channel disable
 	ldrb r2,[r1,#ayChDisable]
-	and r2,r2,#3
+	and r2,r2,#3			;@ Save top envelope enable bits.
 	orr r0,r2,r0,lsl#2
 	strb r0,[r1,#ayChDisable]
 	bx lr
@@ -364,10 +364,9 @@ calculateVolumes:			;@ r2 = ayptr, r10 = attenuation
 volLoop:
 	ands r0,r1,#0x02
 	movne r0,r3
-	tst r1,#0x04
-	addne r0,r0,r4
-	tst r1,#0x08
-	addne r0,r0,r5
+	teq r1,r1,lsl#29
+	addcs r0,r0,r5
+	addmi r0,r0,r4
 	eor r0,r0,#0x8000
 	strh r0,[r6,r1]
 	subs r1,r1,#2

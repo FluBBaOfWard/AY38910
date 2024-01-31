@@ -1,4 +1,4 @@
-# AY38910
+# AY38910 V0.6.1
 
 An AY-3-8910 / YM2149 sound chip emulator for ARM32.
 

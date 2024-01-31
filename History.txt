@@ -2,6 +2,10 @@ AY-3-8910 revision history
 -=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
+V0.6.1 - 2024-01-31 (FluBBa)
+	Fixed calling of mixer from C.
+	Small optimization to mixer.
+
 V0.6.0 - 2021-12-01 (FluBBa)
 	Rewrote envelope handling to actually work.
 
