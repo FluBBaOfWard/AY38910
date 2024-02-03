@@ -6,6 +6,10 @@
 ;@  Copyright © 2006-2024 Fredrik Ahlström. All rights reserved.
 ;@
 
+#if !__ASSEMBLER__
+	#error This header file is only for use in assembly files!
+#endif
+
 							;@ AY38910.s
 	.struct 0
 	ayCh0Freq:		.short 0

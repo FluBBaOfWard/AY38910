@@ -76,12 +76,13 @@ int ay38910LoadState(AY38910 *chip, const void *source);
 int ay38910GetStateSize(void);
 
 /**
- * Runs the sound chip for len number of cycles.
- * @param  *len: Number of cycles to run.
+ * Renders count amount of samples, clocks the chip the same amount.
+ * Internal oversampling can be set by defining AY_UPSHIFT to a number.
+ * @param  count: Number of samples to render.
  * @param  *dest: Pointer to buffer where sound is rendered.
  * @param  *chip: The AY38910 chip.
  */
-void ay38910Mixer(int len, s16 *dest, AY38910 *chip);
+void ay38910Mixer(int count, s16 *dest, AY38910 *chip);
 
 /**
  * Write index/register value to the AY38910 chip

@@ -18,14 +18,13 @@
 	.global ay38910DataW
 	.global ay38910DataR
 
-.equ NSEED,	0x10000				;@ Noise Seed
-.equ WFEED,	0x12000				;@ White Noise Feedback, according to MAME.
-.equ WFEED3, 0x14000			;@ White Noise Feedback for AY-3-8930, according to MAME.
+	.equ NSEED,	0x10000			;@ Noise Seed
+	.equ WFEED,	0x12000			;@ White Noise Feedback, according to MAME.
+	.equ WFEED3, 0x14000		;@ White Noise Feedback for AY-3-8930, according to MAME.
 
-#define AYDIVIDE 1
-#define AYNOISEADD 0x08000000*AYDIVIDE
-#define AYTONEADD  0x00100000*AYDIVIDE
-#define AYENVADD   0x00010000*AYDIVIDE
+#define AYNOISEADD 0x08000000
+#define AYTONEADD  0x00100000
+#define AYENVADD   0x00010000
 
 	.syntax unified
 	.arm
@@ -56,20 +55,13 @@ ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r2=pointer to struct
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{r4-r11,lr}
 	ldmia r2,{r3-r11}			;@ Load freq,addr,rng
+#ifdef AY_UPSHIFT
+	mov r0,r0,lsl#AY_UPSHIFT
+#endif
 	tst r11,#0xff
 	blne calculateVolumes
 ;@----------------------------------------------------------------------------
 mixLoop:
-	adds r8,r8,#AYENVADD
-	subcs r8,r8,r8,lsl#16
-	addcs r9,r9,#0x08000000
-	tst r9,r9,lsl#15				;@ Envelope Hold
-	bicmi r9,r9,#0x78000000
-	and lr,r9,#0x78000000
-	and r12,r9,r9,lsl#14			;@ Envelope Alternate (allready flipped from Hold)
-	eors r12,r12,r9,lsl#13			;@ Envelope Attack
-	eorpl lr,lr,#0x78000000
-
 	adds r3,r3,#AYTONEADD
 	subcs r3,r3,r3,lsl#20
 	eorcs r9,r9,#0x0000002			;@ Channel A
@@ -79,12 +71,28 @@ mixLoop:
 	adds r5,r5,#AYTONEADD
 	subcs r5,r5,r5,lsl#20
 	eorcs r9,r9,#0x00000008			;@ Channel C
+
 	adds r6,r6,#AYNOISEADD
 	subcs r6,r6,r6,lsl#27
 	orrcs r9,r9,#0x00000070			;@ Clear noise channel.
 	movscs r7,r7,lsr#1
 	eorcs r7,r7,#WFEED
 	eorcs r9,r9,#0x00000070			;@ Noise channel.
+
+	adds r8,r8,#AYENVADD
+	subcs r8,r8,r8,lsl#16
+	addcs r9,r9,#0x08000000
+	tst r9,r9,lsl#15				;@ Envelope Hold
+	bicmi r9,r9,#0x78000000
+#ifdef AY_UPSHIFT
+	sub r0,r0,#1
+	tst r0,#(1<<AY_UPSHIFT)-1
+	bne mixLoop
+#endif
+	and lr,r9,r9,lsl#14				;@ Envelope Alternate (allready flipped from Hold)
+	eors lr,lr,r9,lsl#13			;@ Envelope Attack
+	and lr,r9,#0x78000000
+	eorpl lr,lr,#0x78000000
 
 	orr r12,r9,r9,lsr#9				;@ Channels disable.
 	and r12,r12,r12,lsr#3			;@ Noise disable.
@@ -99,7 +107,11 @@ mixLoop:
 	addcs r11,r11,lr
 	addmi r11,r11,lr
 
+#ifdef AY_UPSHIFT
+	cmp r0,#0
+#else
 	subs r0,r0,#1
+#endif
 	strhpl r11,[r1],#2
 	bhi mixLoop
 
