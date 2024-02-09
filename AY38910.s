@@ -53,15 +53,19 @@
 ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r2=pointer to struct
 	.type   ay38910Mixer STT_FUNC
 ;@----------------------------------------------------------------------------
-	stmfd sp!,{r4-r11,lr}
-	ldmia r2,{r3-r11}			;@ Load freq,addr,rng
 #ifdef AY_UPSHIFT
 	mov r0,r0,lsl#AY_UPSHIFT
 #endif
+	stmfd sp!,{r4-r11,lr}
+	ldmia r2,{r3-r11}			;@ Load freq,addr,rng,env
 	tst r11,#0xff
 	blne calculateVolumes
 ;@----------------------------------------------------------------------------
 mixLoop:
+#ifdef AY_UPSHIFT
+	mov r11,#0x8000
+innerMixLoop:
+#endif
 	adds r3,r3,#AYTONEADD
 	subcs r3,r3,r3,lsl#20
 	eorcs r9,r9,#0x0000001		;@ Channel A
@@ -84,30 +88,36 @@ mixLoop:
 	addcs r9,r9,#0x08000000
 	tst r9,r9,lsl#15			;@ Envelope Hold
 	bicmi r9,r9,#0x78000000
+	orr r12,r9,r9,lsr#10		;@ Channels disable.
+	and r12,r12,r12,lsr#3		;@ Noise disable.
+	mov r12,r12,lsl#29
+	add lr,r2,r12,lsr#28
 #ifdef AY_UPSHIFT
-	sub r0,r0,#1
-	tst r0,#(1<<AY_UPSHIFT)-1
-	bne mixLoop
+	ldrh lr,[lr,#ayCalculatedVolumes]
+	add r11,r11,lr
+#else
+	ldrh r11,[lr,#ayCalculatedVolumes]
 #endif
+
 	and lr,r9,r9,lsl#14			;@ Envelope Alternate (allready flipped from Hold)
 	eors lr,lr,r9,lsl#13		;@ Envelope Attack
 	and lr,r9,#0x78000000
 	eorpl lr,lr,#0x78000000
 
-	orr r12,r9,r9,lsr#10		;@ Channels disable.
-	and r12,r12,r12,lsr#3		;@ Noise disable.
-	mov r12,r12,lsl#29
-	add r11,r2,r12,lsr#28
-	ldrh r11,[r11,#ayCalculatedVolumes]
-
 	ands r12,r12,r9,lsl#22		;@ Check if any channels use envelope
 	ldrne lr,[r10,lr,lsr#25]
+#ifdef AY_UPSHIFT
+	mov lr,lr,lsr#AY_UPSHIFT
+#endif
 	addmi r11,r11,lr
 	movs r12,r12,lsl#2
 	addcs r11,r11,lr
 	addmi r11,r11,lr
 
 #ifdef AY_UPSHIFT
+	sub r0,r0,#1
+	tst r0,#(1<<AY_UPSHIFT)-1
+	bne innerMixLoop
 	cmp r0,#0
 #else
 	subs r0,r0,#1
@@ -158,7 +168,11 @@ rLoop:
 	str r0,[r1,#ayPortAInFptr]
 	ldr r0,=portBInDummy
 	str r0,[r1,#ayPortBInFptr]
+#ifdef AY_UPSHIFT
+	mov r0,#0x0000
+#else
 	mov r0,#0x8000
+#endif
 	strh r0,[r1,#ayCalculatedVolumes]
 
 	mov r0,#0xFF
@@ -282,12 +296,6 @@ ay38910Reg4W:
 	moveq r0,#1
 	add r12,r1,r2,lsl#1
 	strh r0,[r12,#ayCh0Freq]
-	bxne lr
-	ldrb r0,[r1,#ayChState]
-	mov r2,r2,lsr#1
-	mov r12,#1
-	orr r0,r0,r12,lsl r2
-	strb r0,[r1,#ayChState]
 	bx lr
 ;@----------------------------------------------------------------------------
 ay38910Reg6W:				;@ Frequency coarse noise
@@ -390,7 +398,11 @@ volLoop:
 	teq r1,r1,lsl#29
 	addcs r0,r0,r5
 	addmi r0,r0,r4
+#ifdef AY_UPSHIFT
+	mov r0,r0,lsr#AY_UPSHIFT
+#else
 	eor r0,r0,#0x8000
+#endif
 	strh r0,[r6,r1]
 	subs r1,r1,#2
 	bne volLoop
