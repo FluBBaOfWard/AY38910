@@ -22,6 +22,12 @@
 	.equ WFEED,	0x12000			;@ White Noise Feedback, according to MAME.
 	.equ WFEED3, 0x14000		;@ White Noise Feedback for AY-3-8930, according to MAME.
 
+#ifdef AY_UPSHIFT
+	#define SHFT AY_UPSHIFT
+#else
+	#define SHFT 0
+#endif
+
 #define AYNOISEADD 0x08000000
 #define AYTONEADD  0x00100000
 #define AYENVADD   0x00010000
@@ -106,9 +112,6 @@ innerMixLoop:
 
 	ands r12,r12,r9,lsl#22		;@ Check if any channels use envelope
 	ldrne lr,[r10,lr,lsr#25]
-#ifdef AY_UPSHIFT
-	mov lr,lr,lsr#AY_UPSHIFT
-#endif
 	addmi r11,r11,lr
 	movs r12,r12,lsl#2
 	addcs r11,r11,lr
@@ -135,8 +138,8 @@ innerMixLoop:
 #endif
 ;@----------------------------------------------------------------------------
 attenuation:				;@ each step * 0.70710678 (-3dB?)
-	.long 0x0000, 0x00AB, 0x00F1, 0x0155, 0x01E3, 0x02AB, 0x03C5, 0x0555
-	.long 0x078B, 0x0AAB, 0x0F16, 0x1555, 0x1E2B, 0x2AAB, 0x3C57, 0x5555
+	.long 0x0000>>SHFT, 0x00AB>>SHFT, 0x00F1>>SHFT, 0x0155>>SHFT, 0x01E3>>SHFT, 0x02AB>>SHFT, 0x03C5>>SHFT, 0x0555>>SHFT
+	.long 0x078B>>SHFT, 0x0AAB>>SHFT, 0x0F16>>SHFT, 0x1555>>SHFT, 0x1E2B>>SHFT, 0x2AAB>>SHFT, 0x3C57>>SHFT, 0x5555>>SHFT
 	.long 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 	.long 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 ;@----------------------------------------------------------------------------
@@ -168,11 +171,7 @@ rLoop:
 	str r0,[r1,#ayPortAInFptr]
 	ldr r0,=portBInDummy
 	str r0,[r1,#ayPortBInFptr]
-#ifdef AY_UPSHIFT
-	mov r0,#0x0000
-#else
 	mov r0,#0x8000
-#endif
 	strh r0,[r1,#ayCalculatedVolumes]
 
 	mov r0,#0xFF
@@ -373,8 +372,9 @@ portBInDummy:
 	bx lr
 ;@----------------------------------------------------------------------------
 calculateVolumes:			;@ r2 = ayptr, r10 = attenuation
+;@ r11 free to use
 ;@----------------------------------------------------------------------------
-	stmfd sp!,{r0,r1,r3-r6,lr}
+	stmfd sp!,{r0,r1,r3-r5,lr}
 
 	bic r9,r9,#0x0380			;@ Bits used to show which channels use the envelope.
 	ldrb r0,[r2,#ayRegs+0x8]
@@ -390,7 +390,7 @@ calculateVolumes:			;@ r2 = ayptr, r10 = attenuation
 	ldrne r5,[r10,r5,lsr#25]
 	orrmi r9,r9,#0x0200
 
-	add r6,r2,#ayCalculatedVolumes
+	add r12,r2,#ayCalculatedVolumes
 	mov r1,#0x0E
 volLoop:
 	ands r0,r1,#0x02
@@ -398,16 +398,12 @@ volLoop:
 	teq r1,r1,lsl#29
 	addcs r0,r0,r5
 	addmi r0,r0,r4
-#ifdef AY_UPSHIFT
-	mov r0,r0,lsr#AY_UPSHIFT
-#else
 	eor r0,r0,#0x8000
-#endif
-	strh r0,[r6,r1]
+	strh r0,[r12,r1]
 	subs r1,r1,#2
 	bne volLoop
 	strb r1,[r2,#ayAttChg]
-	ldmfd sp!,{r0,r1,r3-r6,pc}
+	ldmfd sp!,{r0,r1,r3-r5,pc}
 
 ;@----------------------------------------------------------------------------
 	.end
