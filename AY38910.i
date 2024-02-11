@@ -41,12 +41,13 @@ ayPortBOut:		.byte 0
 ayPortAIn:		.byte 0
 ayPortBIn:		.byte 0
 ayRegs:			.space 16
+ayStateSize:
 ayPortAInFptr:	.long 0
 ayPortBInFptr:	.long 0
 ayPortAOutFptr:	.long 0
 ayPortBOutFptr:	.long 0
 
-	aySize:
+aySize:
 
 ;@----------------------------------------------------------------------------
 

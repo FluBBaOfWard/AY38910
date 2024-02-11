@@ -153,7 +153,7 @@ ay38910Reset:				;@ ayptr=r0=pointer to struct
 
 	mov r1,r0
 	mov r0,#0
-	mov r2,#aySize/4			;@ Clear AY38910 state
+	mov r2,#ayStateSize/4		;@ Clear AY38910 state
 rLoop:
 	subs r2,r2,#1
 	strpl r0,[r1,r2,lsl#2]
