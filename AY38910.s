@@ -28,9 +28,9 @@
 	.equ USHIFT, 0
 #endif
 #ifdef AYFILTER
-	.equ FSHIFT, AYFILTER+USHIFT
+	.equ FSHIFT, AYFILTER
 #else
-	.equ FSHIFT, 1+USHIFT
+	.equ FSHIFT, 1
 #endif
 
 #define AYNOISEADD 0x08000000
@@ -73,7 +73,7 @@ ay38910Mixer:				;@ r0=len, r1=dest, ayptr=r2=pointer to struct
 	blne calculateVolumes
 ;@----------------------------------------------------------------------------
 mixLoop:
-	sub r10,r10,r10,lsr#FSHIFT-USHIFT
+	sub r10,r10,r10,lsr#FSHIFT
 innerMixLoop:
 	adds r3,r3,#AYTONEADD
 	subcs r3,r3,r3,lsl#20
@@ -122,7 +122,7 @@ innerMixLoop:
 	bne innerMixLoop
 	cmp r0,#0
 #endif
-	mov lr,r10,lsr#FSHIFT
+	mov lr,r10,lsr#FSHIFT+USHIFT
 	eor lr,lr,#0x8000
 	strhpl lr,[r1],#2
 	bhi mixLoop
