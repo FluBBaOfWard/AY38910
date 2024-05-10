@@ -41,10 +41,10 @@ typedef struct {
 	u8 ayPortAIn;
 	u8 ayPortBIn;
 	u8 ayRegs[16];
-	void *ayPortAInFptr;
-	void *ayPortBInFptr;
-	void *ayPortAOutFptr;
-	void *ayPortBOutFptr;
+	u8 (*ayPortAInFptr)(void);
+	u8 (*ayPortBInFptr)(void);
+	void (*ayPortAOutFptr)(u8);
+	void (*ayPortBOutFptr)(u8);
 
 } AY38910;
 
