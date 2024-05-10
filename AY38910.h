@@ -41,8 +41,8 @@ typedef struct {
 	u8 ayPortAIn;
 	u8 ayPortBIn;
 	u8 ayRegs[16];
-	u8 (*ayPortAInFptr)(void);
-	u8 (*ayPortBInFptr)(void);
+	u8 (*ayPortAInFptr)(u8, int);
+	u8 (*ayPortBInFptr)(u8, int);
 	void (*ayPortAOutFptr)(u8);
 	void (*ayPortBOutFptr)(u8);
 

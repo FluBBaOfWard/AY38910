@@ -10,7 +10,7 @@ Produces signed 16bit mono.
 
 The "in function" can take 2 arguments, the first is a possible output value
 on the IO ports of the chip, the second argument is if the ports is in output
-mode. Something like "ioACallback(u8 val, u8 inout)", if "inout" is not zero,
+mode. Something like "ioACallback(u8 val, int inout)", if "inout" is not zero,
 val is the current value output by the chip.   
 You can define AY_UPSHIFT to a number, this is how many times the internal
 sampling is doubled. You can add "-DAY_UPSHIFT=2" to the "make" file to
