@@ -21,19 +21,21 @@ higher frequencies, default is 1.
 ## Projects that use this code
 
 * <https://github.com/FluBBaOfWard/BlackTigerDS> (YM2203)
+* <https://github.com/wavemotion-dave/ColecoDS>
 * <https://github.com/FluBBaOfWard/DoubleDribbleDS> (YM2203)
 * <https://github.com/FluBBaOfWard/GhostsNGoblinsDS> (YM2203)
-* <https://github.com/FluBBaOfWard/IronHorseDS> (YM2203)
+* <https://github.com/FluBBaOfWard/K80DS> (YM2203)
 * <https://github.com/FluBBaOfWard/S8DS>
 * <https://github.com/FluBBaOfWard/SonSonDS>
 * <https://github.com/FluBBaOfWard/SonSonGBA>
 * <https://github.com/FluBBaOfWard/YM2203>
-* <https://github.com/wavemotion-dave/ColecoDS>
 
 ## Credits
 
 Fredrik Ahlström
 
-X/Twitter @TheRealFluBBa
+<https://bsky.app/profile/therealflubba.bsky.social>
 
 <https://www.github.com/FluBBaOfWard>
+
+X/Twitter @TheRealFluBBa
