@@ -110,4 +110,4 @@ u8 ay38910DataR(AY38910 *chip);
 } // extern "C"
 #endif
 
-#endif // AY38910_HEADER
+#endif // !AY38910_HEADER
